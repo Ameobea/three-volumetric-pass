@@ -1,0 +1,37 @@
+{
+  "name": "three-volumetric-pass",
+  "version": "0.1.0",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.umd.cjs"
+    }
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "build:demo": "vite build --config vite.config.demo.js",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@types/three": "^0.159.0",
+    "lil-gui": "^0.19.1",
+    "three": "^0.159.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.8",
+    "vite-plugin-dts": "^3.6.4",
+    "vite-plugin-glsl": "^1.2.1",
+    "postprocessing": "^6.33.4"
+  },
+  "peerDependencies": {
+    "three": ">=0.151 <=0.159",
+    "postprocessing": "^6.33.4"
+  }
+}
