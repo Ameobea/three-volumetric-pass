@@ -18,6 +18,9 @@ document.body.appendChild(canvas);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 1000);
+camera.near = 0.5;
+camera.far = 50_000;
+camera.updateProjectionMatrix();
 camera.position.set(120, 200, 120);
 
 const renderer = new THREE.WebGLRenderer({
@@ -30,13 +33,20 @@ const composer = new EffectComposer(renderer, { frameBufferType: THREE.HalfFloat
 
 const params: VolumetricPassParams = {
   fogMinY: -100,
-  fogMaxY: 40,
-  fogFadeOutRangeY: 40,
+  fogMaxY: 240,
+  fogFadeOutRangeY: 170,
   fogFadeOutPow: 1,
-  maxRayLength: 1000,
-  baseRaymarchStepCount: 180,
-  noisePow: 8,
+  maxRayLength: 1300,
+  baseRaymarchStepCount: 280,
+  noiseBias: 0.1,
+  noisePow: 6,
+  heightFogFactor: 0.1,
+  heightFogStartY: 0,
+  heightFogEndY: 190,
   halfRes: true,
+  globalScale: 0.4,
+  fogColorLowDensity: new THREE.Vector3(250 / 255, 132 / 255, 201 / 255),
+  noiseMovementPerSecond: new THREE.Vector2(20.0, 20.0),
 };
 const volumetricPass = new VolumetricPass(scene, camera, params);
 
@@ -64,8 +74,6 @@ const lightSphere = new THREE.Mesh(
   new THREE.SphereGeometry(0.5, 32, 32),
   new THREE.MeshBasicMaterial({ color: 0xffffff })
 );
-lightSphere.castShadow = false;
-lightSphere.receiveShadow = false;
 lightSphere.position.copy(dirLight.position);
 scene.add(lightSphere);
 
@@ -80,8 +88,11 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.25;
 renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
 
+const clock = new THREE.Clock();
+clock.start();
 const animate = () => {
   composer.render();
+  volumetricPass.setCurTimeSeconds(clock.getElapsedTime());
   controls.update();
   requestAnimationFrame(animate);
 };

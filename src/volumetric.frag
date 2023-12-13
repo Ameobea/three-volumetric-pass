@@ -112,9 +112,6 @@ float sampleFogDensity(vec3 worldPos, out vec3 gradient, float distanceToCamera)
   float fadeOutFactor = computeFadeOutYFactor(worldPos.y);
   noise *= fadeOutFactor;
 
-  // scale the noise to match the desired density range
-  noise = noise * fogDensityMultiplier;
-
   return noise;
 }
 
@@ -211,9 +208,9 @@ void sampleOneStep(
   vec3 curPos = startPos + rayDir * totalDistance;
   float distanceToCamera = length(curPos - cameraPos);
   float rawDensity = sampleFogDensity(curPos, gradient, distanceToCamera);
-  float density = rawDensity * stepSize;
+  float density = rawDensity * stepSize * fogDensityMultiplier;
 
-  if (rawDensity > 0.005) {
+  if (rawDensity > 0.01) {
     vec3 color = computeColor(curPos, rawDensity, gradient);
     // We only accumulate within the remaining "space" of the transparency so far
     float remainingOpacity = 1. - accumulatedDensity;
@@ -231,8 +228,7 @@ vec4 march(in vec3 startPos, in vec3 endPos, in ivec2 screenCoord) {
   // debug clipped ray length ratio
   // return vec4(vec3(length(endPos - startPos) / beforeLength), 1.0);
 
-  // This indicates that the entire ray is outside of the fog zone, so we can
-  // skip marching alltogether.
+  // This indicates that the entire ray is outside of the fog zone, so we can skip marching alltogether.
   if (startPos == endPos) {
     return vec4(0.0);
   }
@@ -240,24 +236,21 @@ vec4 march(in vec3 startPos, in vec3 endPos, in ivec2 screenCoord) {
   vec3 rayDir = normalize(endPos - startPos);
   float rayLength = length(endPos - startPos);
 
-  // TODO: When rays are at very slight angles to the bounding planes and a relatively high `fogFadeOutRangeY` is set,
+  // When rays are at very slight angles to the bounding planes and a relatively high `fogFadeOutRangeY` is set,
   // the ray will be clipped to spend most of its length within the attenuation zone.  This causes the final density
   // after marching to be low since the region where the ray has most if its density is not marched.
   //
-  // To fix this, the clip zone for long rays that interact with that attenuation zone should be adjusted to start the
-  // ray deeper within the fog volume so that a more accurate density can be computed.
-  if (rayLength > maxRayLength) {
-    rayLength = maxRayLength;
+  // To combat this, we adjust the max ray length to be higher based on the length of the unclipped ray.
+  float adjustedMaxRayLength = maxRayLength + min(rayLength * 0.3, 4000.);
+  if (rayLength > adjustedMaxRayLength) {
+    rayLength = adjustedMaxRayLength;
   }
 
   // debug ray length
-  // return vec4(vec3(rayLength / maxRayLength), 1.0);
-
-  // debug ray start y
-  // return vec4(vec3(smoothstep(fogMinY, fogMaxY, startPos.y)), 1.0);
-
-  // debug ray end y
-  // return vec4(vec3(smoothstep(fogMinY, fogMaxY, endPos.y)), 1.0);
+  // if (rayLength > maxRayLength) {
+  //   return vec4(rayLength / adjustedMaxRayLength, 0., 0., 1.);
+  // }
+  // return vec4(vec3(rayLength / (maxRayLength + 1000.)), 1.0);
 
   float baseStepLength = rayLength / float(baseRaymarchStepCount);
 
