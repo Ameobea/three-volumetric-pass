@@ -50,9 +50,11 @@ export interface VolumetricPassParams {
   /**
    * Maximum distance to raymarch through the volume.
    *
+   * TODO: Update with docs about the adjustment that happens for long rays
+   *
    * Default: 300
    */
-  maxRayLength?: number;
+  baseMaxRayLength?: number;
   /**
    * Minimum distance to step when raymarching through the volume.  Setting this to higher values can help improve performance but may produce artifacts.
    *
@@ -207,7 +209,7 @@ class VolumetricMaterial extends THREE.ShaderMaterial {
       fogMaxY: { value: 4.4 },
       baseRaymarchStepCount: { value: 80 },
       maxRaymarchStepCount: { value: 400 },
-      maxRayLength: { value: 300.0 },
+      baseMaxRayLength: { value: 300.0 },
       minStepLength: { value: 0.2 },
       maxDensity: { value: 1 },
       fogColorHighDensity: { value: new THREE.Vector3(0.32, 0.35, 0.38) },

@@ -29,7 +29,7 @@ uniform float fogMinY;
 uniform float fogMaxY;
 uniform int baseRaymarchStepCount;
 uniform int maxRaymarchStepCount;
-uniform float maxRayLength;
+uniform float baseMaxRayLength;
 uniform float minStepLength;
 uniform float maxDensity;
 uniform vec3 fogColorHighDensity;
@@ -225,9 +225,6 @@ vec4 march(in vec3 startPos, in vec3 endPos, in ivec2 screenCoord) {
   // clip the march segment endpoints to minimize the length of the ray
   clipRayEndpoints(startPos, endPos);
 
-  // debug clipped ray length ratio
-  // return vec4(vec3(length(endPos - startPos) / beforeLength), 1.0);
-
   // This indicates that the entire ray is outside of the fog zone, so we can skip marching alltogether.
   if (startPos == endPos) {
     return vec4(0.0);
@@ -241,16 +238,18 @@ vec4 march(in vec3 startPos, in vec3 endPos, in ivec2 screenCoord) {
   // after marching to be low since the region where the ray has most if its density is not marched.
   //
   // To combat this, we adjust the max ray length to be higher based on the length of the unclipped ray.
-  float adjustedMaxRayLength = maxRayLength + min(rayLength * 0.3, 4000.);
-  if (rayLength > adjustedMaxRayLength) {
-    rayLength = adjustedMaxRayLength;
+  float maxRayLength = baseMaxRayLength;
+  // TODO: these constants need to be configurable
+  maxRayLength += min(rayLength * 0.2, 1500.);
+  if (rayLength > maxRayLength) {
+    rayLength = maxRayLength;
   }
 
   // debug ray length
-  // if (rayLength > maxRayLength) {
-  //   return vec4(rayLength / adjustedMaxRayLength, 0., 0., 1.);
-  // }
-  // return vec4(vec3(rayLength / (maxRayLength + 1000.)), 1.0);
+  // return vec4(vec3(rayLength / maxRayLength), 1.0);
+
+  // debug end y position within fog zone
+  // return vec4(vec3(endPos.y - fogMinY) / vec3(fogMaxY - fogMinY), 1.0);
 
   float baseStepLength = rayLength / float(baseRaymarchStepCount);
 
@@ -275,7 +274,8 @@ vec4 march(in vec3 startPos, in vec3 endPos, in ivec2 screenCoord) {
     float stepLength = max(baseStepLength, minStepLength);
     // I've found that adding some jitter to the step length helps to reduce artifacts in very
     // short rays, and allows the min step length to be set higher, which improves performance.
-    // stepLength += jitter * 0.2;
+    stepLength += jitter * 0.2;
+
     totalDistance += stepLength;
     sampleOneStep(totalDistance, stepLength, startPos, rayDir, gradient, accumulatedColor, density);
 
