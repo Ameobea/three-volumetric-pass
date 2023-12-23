@@ -69,7 +69,7 @@ float sampleFogFromNoise(vec3 worldPos) {
 const float LODWeights[TOTAL_LOD_COUNT] = float[](1., 0.3, 0.2, 0.1, 0.06, 0.035);
 const float LODScales[TOTAL_LOD_COUNT] = float[](0.1, 0.3, 0.6, 1.2, 2.2, 4.1);
 
-float sampleFogDensityLOD(vec3 worldPos, float distanceToCamera, inout float totalSampledMagnitude, const int lod) {
+float sampleFogDensityLOD(vec3 worldPos, inout float totalSampledMagnitude, const int lod) {
   float weight = LODWeights[lod];
   float scale = LODScales[lod] * globalScale;
 
@@ -82,7 +82,7 @@ float computeFadeOutYFactor(float y) {
   return 1. - pow(smoothstep(fogMaxY - fogFadeOutRangeY, fogMaxY, y), fogFadeOutPow);
 }
 
-float sampleFogDensity(vec3 worldPos, out vec3 gradient, float distanceToCamera) {
+float sampleFogDensity(vec3 worldPos, out vec3 gradient) {
   // TODO: compute gradient
   float noise = noiseBias;
 
@@ -91,11 +91,8 @@ float sampleFogDensity(vec3 worldPos, out vec3 gradient, float distanceToCamera)
   // keep track of total magnitude of sampled weights so noise can be properly normalized
   float totalSampledMagnitude = 0.;
   for (int octave = 0; octave < OCTAVE_COUNT; octave++) {
-    noise += sampleFogDensityLOD(worldPos, distanceToCamera, totalSampledMagnitude, octave);
+    noise += sampleFogDensityLOD(worldPos, totalSampledMagnitude, octave);
   }
-
-  // \/ Uncommenting this seems to wash out detail in the fog, so leaving it off even though it's probably more correct
-  // noise /= totalSampledMagnitude;
 
   noise = noise * 0.5 + 0.5;
   noise = clamp(noise, -1., 1.);
@@ -116,30 +113,7 @@ float sampleFogDensity(vec3 worldPos, out vec3 gradient, float distanceToCamera)
 }
 
 /**
- * Calculates the signed distance from point `p` to a plane defined by
- * normal `n` and distance `h` from the origin.
- *
- * `n` must be normalized.
- */
-float sdPlane(vec3 p, vec3 n, float h) {
-  return dot(p, n) + h;
-}
-
-/**
- * Calculates the intersection of a ray defined by `rayOrigin` and `rayDirection`
- * with a plane defined by normal `planeNormal` and distance `planeDistance`
- *
- * Returns the distance from the ray origin to the intersection point.
- *
- * The return value will be negative if the ray does not intersect the plane.
- */
-float intersectRayPlane(vec3 rayOrigin, vec3 rayDirection, vec3 planeNormal, float planeDistance) {
-  float denom = dot(planeNormal, rayDirection);
-  return -(sdPlane(rayOrigin, planeNormal, planeDistance) / denom);
-}
-
-/**
- * Specialized version of `intersectRayPlane` that assumes the plane is the XZ plane, i.e. normal = (0, 1, 0)
+ * Returns the distance along the ray where it intersects the XZ plane at the given height.
  */
 float intersectRayXZPlane(vec3 rayOrigin, vec3 rayDirection, float planeDistance) {
   return -(rayOrigin.y - planeDistance) / rayDirection.y;
@@ -206,8 +180,7 @@ void sampleOneStep(
   inout float accumulatedDensity
 ) {
   vec3 curPos = startPos + rayDir * totalDistance;
-  float distanceToCamera = length(curPos - cameraPos);
-  float rawDensity = sampleFogDensity(curPos, gradient, distanceToCamera);
+  float rawDensity = sampleFogDensity(curPos, gradient);
   float density = rawDensity * stepSize * fogDensityMultiplier;
 
   if (rawDensity > 0.01) {
@@ -220,8 +193,6 @@ void sampleOneStep(
 }
 
 vec4 march(in vec3 startPos, in vec3 endPos, in ivec2 screenCoord) {
-  float beforeLength = length(endPos - startPos);
-
   // clip the march segment endpoints to minimize the length of the ray
   clipRayEndpoints(startPos, endPos);
 
@@ -276,8 +247,8 @@ vec4 march(in vec3 startPos, in vec3 endPos, in ivec2 screenCoord) {
     // short rays, and allows the min step length to be set higher, which improves performance.
     stepLength += jitter * 0.2;
 
-    totalDistance += stepLength;
     sampleOneStep(totalDistance, stepLength, startPos, rayDir, gradient, accumulatedColor, density);
+    totalDistance += stepLength;
 
     if (density >= (maxDensity - 0.01)) {
       // density = min(density, maxDensity);
